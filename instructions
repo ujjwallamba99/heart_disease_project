@@ -1,0 +1,24 @@
+cd Desktop
+1
+cd your_project_folder_name
+
+ls
+2
+source venv/bin/activate
+
+"""If successful, you will see:
+
+(venv) your-macbook %"""
+3
+uvicorn api:app --reload
+
+Uvicorn running on http://127.0.0.1:8000
+4
+Command + T
+5
+cd Desktop/your_project_folder_name
+6
+source venv/bin/activate
+7
+streamlit run app.py
+
