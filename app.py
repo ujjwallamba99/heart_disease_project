@@ -1,22 +1,19 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
-import requests
+import joblib
 
-# =====================================================
-# PAGE CONFIG
-# =====================================================
+# ================= LOAD MODEL =================
+model = joblib.load("heart_disease_model.pkl")
 
+# ================= PAGE CONFIG =================
 st.set_page_config(
     page_title="AI Cardiovascular Risk System",
     page_icon="❤️",
     layout="wide"
 )
 
-# =====================================================
-# SIDEBAR
-# =====================================================
-
+# ================= SIDEBAR =================
 st.sidebar.title("🫀 Navigation")
 page = st.sidebar.radio(
     "Select Module",
@@ -24,15 +21,13 @@ page = st.sidebar.radio(
 )
 
 # =====================================================
-# RISK PREDICTION PAGE
+# ❤️ RISK PREDICTION PAGE
 # =====================================================
-
 if page == "❤️ Risk Prediction":
 
     st.title("AI-Based Cardiovascular Risk Assessment System")
     st.markdown("Clinical Decision Support Dashboard")
 
-    # ================= INPUT MODE =================
     input_mode = st.radio(
         "Select Input Mode",
         ["📝 Manual Entry", "🎲 Random Sample Patient"]
@@ -56,32 +51,28 @@ if page == "❤️ Risk Prediction":
         thal = np.random.randint(0, 3)
 
         sex_display = "Male" if sex_val == 1 else "Female"
-    
+
         st.info("Random patient generated for demonstration.")
-    
+
         st.subheader("🧑 Generated Patient Details")
-    
-        random_data = {
+        st.table({
             "Age": age,
             "Sex": sex_display,
             "Chest Pain Type": cp,
-            "Resting Blood Pressure": trestbps,
+            "Resting BP": trestbps,
             "Cholesterol": chol,
-            "Fasting Blood Sugar >120": fbs,
+            "FBS >120": fbs,
             "Rest ECG": restecg,
-            "Max Heart Rate": thalach,
-            "Exercise Induced Angina": exang,
-            "ST Depression": oldpeak,
+            "Max HR": thalach,
+            "Exang": exang,
+            "Oldpeak": oldpeak,
             "Slope": slope,
-            "Major Vessels": ca,
+            "CA": ca,
             "Thal": thal
-        }
-    
-        st.table(random_data)
+        })
 
-
+    # ================= MANUAL MODE =================
     else:
-        # ================= MANUAL ENTRY =================
         col1, col2 = st.columns(2)
 
         with col1:
@@ -103,136 +94,63 @@ if page == "❤️ Risk Prediction":
 
         sex_val = 1 if sex == "Male" else 0
 
-    # ================= PREDICTION BUTTON =================
+    # ================= PREDICTION =================
     if st.button("🔍 Predict Risk"):
 
-        try:
-            response = requests.post(
-                "http://127.0.0.1:8000/predict",
-                json={
-                    "age": age,
-                    "sex": sex_val,
-                    "cp": cp,
-                    "trestbps": trestbps,
-                    "chol": chol,
-                    "fbs": fbs,
-                    "restecg": restecg,
-                    "thalach": thalach,
-                    "exang": exang,
-                    "oldpeak": oldpeak,
-                    "slope": slope,
-                    "ca": ca,
-                    "thal": thal
-                }
-            )
+        input_data = np.array([[
+            age, sex_val, cp, trestbps, chol,
+            fbs, restecg, thalach, exang,
+            oldpeak, slope, ca, thal
+        ]])
 
-            if response.status_code == 200:
+        prediction = model.predict(input_data)
+        probability = model.predict_proba(input_data)
 
-                result = response.json()
-                risk_score = result["risk_score_percent"]
-                confidence = result["confidence_percent"]
+        risk_score = float(probability[0][1] * 100)
+        confidence = float(np.max(probability) * 100)
 
-                # ================= RISK GAUGE =================
-                st.subheader("📊 Risk Assessment")
+        # ================= RISK GAUGE =================
+        st.subheader("📊 Risk Assessment")
 
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=risk_score,
-                    number={'suffix': "%"},
-                    title={'text': "Heart Disease Risk"},
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': "red"}
-                    }
-                ))
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=risk_score,
+            number={'suffix': "%"},
+            title={'text': "Heart Disease Risk"},
+            gauge={'axis': {'range': [0, 100]}}
+        ))
 
-                st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
+        st.metric("Prediction Confidence", f"{confidence:.2f}%")
 
-                st.metric("Prediction Confidence", f"{confidence:.2f}%")
+        # ================= SEVERITY =================
+        if risk_score > 75:
+            severity = "Stage 3 – Severe Cardiac Risk"
+            st.error(severity)
+        elif risk_score > 50:
+            severity = "Stage 2 – High Risk"
+            st.warning(severity)
+        elif risk_score > 30:
+            severity = "Stage 1 – Moderate Risk"
+            st.info(severity)
+        else:
+            severity = "Low Cardiovascular Risk"
+            st.success(severity)
 
-                # ================= SEVERITY LEVEL =================
-                if risk_score > 75:
-                    severity = "Stage 3 – Severe Cardiac Risk"
-                    st.error(severity)
-                elif risk_score > 50:
-                    severity = "Stage 2 – High Risk"
-                    st.warning(severity)
-                elif risk_score > 30:
-                    severity = "Stage 1 – Moderate Risk"
-                    st.info(severity)
-                else:
-                    severity = "Low Cardiovascular Risk"
-                    st.success(severity)
-
-                st.progress(int(risk_score))
-
-                # ================= CLINICAL ANALYSIS =================
-                st.subheader("🩺 Clinical Evaluation")
-
-                if trestbps > 130:
-                    st.error("Elevated Blood Pressure")
-                if chol > 200:
-                    st.error("High Cholesterol Level")
-                if thalach < 100:
-                    st.warning("Low Heart Rate Capacity")
-
-                # ================= AI EXPLANATION =================
-                st.subheader("🧠 AI Insight")
-
-                factors = []
-                if chol > 200:
-                    factors.append("High Cholesterol")
-                if trestbps > 130:
-                    factors.append("Elevated Blood Pressure")
-                if exang == 1:
-                    factors.append("Exercise-Induced Angina")
-
-                if factors:
-                    st.info("Primary influencing factors: " + ", ".join(factors))
-                else:
-                    st.info("No major abnormal indicators detected.")
-
-                # ================= RECOMMENDATIONS =================
-                st.subheader("🤖 Clinical Recommendations")
-
-                if risk_score > 60:
-                    st.error("Immediate cardiology consultation advised.")
-                elif risk_score > 35:
-                    st.warning("Adopt heart-healthy lifestyle and monitor regularly.")
-                else:
-                    st.success("Maintain healthy lifestyle and preventive checkups.")
-
-                # ================= SUMMARY =================
-                st.subheader("📋 Clinical Summary")
-
-                st.write(f"""
-                Risk Score: {risk_score:.2f}%  
-                Severity Level: {severity}  
-                Confidence: {confidence:.2f}%  
-                Recommended Action: {"Consult Cardiologist" if risk_score > 60 else "Lifestyle Monitoring"}
-                """)
-
-            else:
-                st.error("API Error. Ensure FastAPI server is running.")
-
-        except:
-            st.error("Unable to connect to API. Start FastAPI first.")
+        st.progress(int(risk_score))
 
 # =====================================================
-# ABOUT PAGE
+# 📘 ABOUT PAGE
 # =====================================================
-
 else:
     st.title("📘 About This System")
-
     st.write("""
     AI-Based Cardiovascular Risk Assessment System
 
     Architecture:
     - Streamlit Frontend
-    - FastAPI Backend
-    - Random Forest Model
-    - REST API Integration
+    - Random Forest ML Model
+    - Direct Model Integration
 
     This system is designed as a Clinical Decision Support Tool.
     It is not a substitute for professional medical advice.
