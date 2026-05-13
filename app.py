@@ -8,7 +8,7 @@ model = joblib.load("heart_disease_model.pkl")
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
-    page_title="AI Cardiovascular Risk System",
+    page_title="AI Based Heart Disease Prediction Model",
     page_icon="❤️",
     layout="wide"
 )
@@ -25,7 +25,7 @@ page = st.sidebar.radio(
 # =====================================================
 if page == "❤️ Risk Prediction":
 
-    st.title("AI-Based Cardiovascular Risk Assessment System")
+    st.title("AI Based Heart Disease Prediction Model")
     st.markdown("Clinical Decision Support Dashboard")
 
     input_mode = st.radio(
@@ -145,7 +145,7 @@ if page == "❤️ Risk Prediction":
 else:
     st.title("📘 About This System")
     st.write("""
-    AI-Based Cardiovascular Risk Assessment System
+   AI Based Heart Disease Prediction Model
 
     Architecture:
     - Streamlit Frontend
